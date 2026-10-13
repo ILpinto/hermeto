@@ -88,6 +88,38 @@ files or ask. Do not assume.
   with integration tests instead
 - Test hermeto logic, not stdlib or library behavior
 
+## Behavior Specifications
+
+- User-visible behavior is specified in Gherkin before it is
+  implemented -- follow the `write-gherkin-specs` skill
+- Specs live in `features/*.feature`, step definitions in
+  `tests/bdd/steps/`
+- `nox -s bdd-lint` checks Gherkin syntax only; use it when the
+  change is a spec with no step definitions yet. `nox -s bdd`
+  runs the scenarios
+- An issue labeled `spec-only` is a spec task: write the
+  `.feature` file, lint it, open the PR, stop. Do not write
+  step definitions and do not touch `hermeto/`
+- A `.feature` file on `main` is an approved spec. Never modify
+  one while implementing -- if it is wrong, say so in the PR
+- Gherkin tags become pytest markers and `strict` rejects
+  unregistered ones -- declare a new tag in `markers` in
+  `pyproject.toml` in the same commit
+- `pytest-bdd` is already a dev dependency, do not add another
+  BDD runner
+
+## Skills
+
+Repo skills live in `.agents/skills/` (`.claude/skills` is a
+symlink to it). Follow them, do not re-derive their rules:
+
+- `write-gherkin-specs` -- behavior specs and the `spec-only`
+  gate
+- `tdd-python` -- failing test first, repo pytest conventions
+- `package-manager-changes` -- backend invariants; a lockfile
+  format change affects both the read path and the hermetic
+  build rewrite path
+
 If you encounter what appears to be a potential security
 vulnerability, do not fix it or include it in a commit. Stop
 and alert the human operator to follow the process in
