@@ -3,6 +3,7 @@ import asyncio
 import copy
 import logging
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 import yaml
@@ -121,21 +122,46 @@ def _download_resolved_packages(packages: list[PnpmPackage], deps_dir: Path) -> 
             log.warning("Missing checksum for %s", package.id)
 
 
+def _package_entry(lockfile: PnpmLock, package_id: str) -> dict[str, Any]:
+    """Return a package entry from whichever document declares it.
+
+    PnpmLock.packages merges the documents, so writing through it would patch a
+    throwaway dict rather than the document that gets dumped.
+    """
+    if package_id in lockfile.data.get("packages", {}):
+        return lockfile.data["packages"][package_id]
+
+    return lockfile.env["packages"][package_id]
+
+
 def _prepare_lockfile_for_hermetic_build(
     lockfile: PnpmLock, packages: list[PnpmPackage]
 ) -> ProjectFile:
     lockfile_copy = copy.deepcopy(lockfile)
 
     for package in packages:
-        data = lockfile_copy.packages[package.id]
+        data = _package_entry(lockfile_copy, package.id)
         resolution = data.setdefault("resolution", {})
         if package.is_from_npm_registry or package.is_from_jsr_registry:
             resolution["tarball"] = package.tarball_filename
         else:
             resolution["tarball"] = f"file://${{output_dir}}/deps/pnpm/{package.tarball_filename}"
 
+    # Write back the documents the lockfile was read from, in order. Collapsing a
+    # two-document lockfile into one drops the pinned package manager. pnpm also
+    # expects the leading '---' it wrote itself; without it the stream still parses,
+    # but pnpm re-runs the package manager dependency resolution and then fails the
+    # hermetic build with ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE. A pnpm <= 11
+    # lockfile is a single document with no leading '---', so for that case
+    # safe_dump_all is byte-identical to safe_dump.
+    documents = [lockfile_copy.data]
+    explicit_start = bool(lockfile_copy.env)
+    if explicit_start:
+        documents.insert(0, lockfile_copy.env)
+
     return ProjectFile(
-        abspath=lockfile_copy.path, template=yaml.safe_dump(lockfile_copy.data, sort_keys=False)
+        abspath=lockfile_copy.path,
+        template=yaml.safe_dump_all(documents, sort_keys=False, explicit_start=explicit_start),
     )
 
 

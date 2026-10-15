@@ -133,6 +133,67 @@ snapshots:
 
 </details>
 
+### Multi-document lockfiles (pnpm 12)
+
+Since [pnpm v12](https://pnpm.io/lockfile) the file is no longer necessarily a single
+YAML document. When a project declares [configDependencies](https://pnpm.io/settings#configdependencies)
+or [packageManagerDependencies](https://pnpm.io/settings#packagemanagerdependencies),
+pnpm writes a leading **env document** ahead of the project's own dependency graph:
+
+```yaml
+---
+lockfileVersion: '9.0'
+importers:
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.11.2
+        version: 12.11.2
+packages:
+  pnpm@12.11.2:
+    resolution: {integrity: sha512-...}
+---
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      is-number:
+        specifier: 7.0.0
+        version: 7.0.0
+packages:
+  is-number@7.0.0:
+    resolution: {integrity: sha512-...}
+snapshots:
+  is-number@7.0.0: {}
+```
+
+Both documents declare `lockfileVersion: '9.0'`, so the version gate is unaffected.
+The dependency graph is always the **last** document; the env document, when present,
+is the first. A file whose first line is `---` has one.
+
+Most pnpm 12 projects have an env document, because `pnpm init` pins `packageManager`
+by default. The consequences for Hermeto:
+
+- **Read every document.** `yaml.safe_load` raises `expected a single document in the
+  stream` on these files, rejecting a perfectly valid lockfile. `PnpmLock.from_file`
+  uses `yaml.safe_load_all`, keeps the last document as the dependency graph, and keeps
+  the first as `PnpmLock.env`.
+- **Report and fetch the env document's packages.** pnpm installs them, so leaving them
+  out would understate the SBOM and break the offline build. `PnpmLock.packages` merges
+  the `packages` section of both documents, which makes parsing, prefetch, and SBOM
+  generation correct without further changes — they all read through that property.
+- **Write back both documents, in order.** `yaml.safe_dump` emits one document, so a
+  rewrite would silently drop the pinned package manager and pnpm would then reject the
+  hermetic build with `ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE`.
+  `_prepare_lockfile_for_hermetic_build` uses `yaml.safe_dump_all`; for a
+  single-document lockfile the output is byte-identical to `yaml.safe_dump`.
+
+Env-document packages are not reachable from any `importer`, so the BFS in
+`_find_non_dev_dependencies` classifies them as development dependencies. That is the
+conservative answer — the pinned pnpm release is build tooling, not a runtime
+dependency of the application.
+
 ## Implementation
 
 A brief overview of the workflow for Hermeto:

@@ -17,9 +17,14 @@ JSR_REGISTRY_PREFIX = "@jsr/"
 class PnpmLock(UserDict):
     """Class representing a pnpm-lock.yaml file."""
 
-    def __init__(self, path: Path, data: dict[str, Any]) -> None:
-        """Initialize a PnpmLock object."""
+    def __init__(self, path: Path, data: dict[str, Any], env: dict[str, Any] | None = None) -> None:
+        """Initialize a PnpmLock object.
+
+        :param data: the project's dependency graph, the last document in the file
+        :param env: the leading env document, when the lockfile has one
+        """
         self.path = path
+        self.env = env or {}
         super().__init__(data)
         _ensure_lockfile_version_is_supported(self)
 
@@ -33,7 +38,12 @@ class PnpmLock(UserDict):
 
         try:
             with path.open() as f:
-                data = yaml.safe_load(f)
+                # Since pnpm 12 a pnpm-lock.yaml may be a stream of two documents: an
+                # optional leading "env" document recording the project's config
+                # dependencies and pinned package manager, followed by the project's
+                # dependency graph, which is always last. For pnpm <= 11 the dependency
+                # graph is the only document. https://pnpm.io/lockfile
+                documents = [doc for doc in yaml.safe_load_all(f) if doc is not None]
         except yaml.YAMLError as e:
             raise InvalidLockfileFormat(
                 path,
@@ -41,7 +51,13 @@ class PnpmLock(UserDict):
                 solution="The pnpm-lock.yaml file must contain valid YAML.",
             )
 
-        return cls(path, data)
+        # Fall back to an empty mapping for an empty file to preserve the old behavior:
+        # the missing lockfileVersion is reported instead of crashing on the lookup below.
+        return cls(
+            path,
+            documents[-1] if documents else {},
+            env=documents[0] if len(documents) > 1 else None,
+        )
 
     @classmethod
     def from_dir(cls, path: Path) -> "PnpmLock":
@@ -50,8 +66,13 @@ class PnpmLock(UserDict):
 
     @property
     def packages(self) -> dict[str, dict[str, Any]]:
-        """Return the 'packages' key from the pnpm-lock.yaml file."""
-        return self.get("packages", {})
+        """Return the 'packages' from every document in the pnpm-lock.yaml file.
+
+        pnpm installs the env document's packages too -- the pinned package manager
+        and its platform binaries -- so they must be fetched and reported like any
+        other dependency. https://pnpm.io/lockfile
+        """
+        return {**self.env.get("packages", {}), **self.get("packages", {})}
 
     @property
     def snapshots(self) -> dict[str, dict[str, Any]]:

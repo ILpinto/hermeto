@@ -8,6 +8,14 @@ The `lockfileVersion` field must be within the range of >= 9.0 and < 10.0. Earli
 versions are not supported. Newer versions could introduce breaking changes to the
 lockfile format, so Hermeto might not be able to process them correctly.
 
+pnpm 9 through 12 all write `lockfileVersion: '9.0'`, so all four are supported.
+Since pnpm 12, however, the file may hold *two* YAML documents instead of one: a
+leading env document recording the project's [config dependencies][] and its
+[pinned package manager][], followed by the project's own dependency graph. Hermeto
+reads every document, so the packages the env document declares — the pinned pnpm
+release and its platform binaries — are fetched and reported in the SBOM like any
+other dependency.
+
 ## Usage
 
 Using Hermeto locally with pnpm requires no special configuration or additional
@@ -161,5 +169,7 @@ podman build . \
 For more detailed instructions, see the [Usage](usage.md) page or run `hermeto --help`.
 
 [pnpm]: https://pnpm.io
+[config dependencies]: https://pnpm.io/settings#configdependencies
+[pinned package manager]: https://pnpm.io/settings#packagemanagerdependencies
 [trustLockfile]: https://pnpm.io/blog/releases/11.3#trustlockfile
 [official pnpm base image]: https://pnpm.io/docker#official-pnpm-base-image
