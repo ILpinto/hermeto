@@ -44,6 +44,7 @@ class PnpmLock(UserDict):
         self.explicit_start = bool(self.env) if explicit_start is None else explicit_start
         super().__init__(data)
         _ensure_lockfile_version_is_supported(self)
+        _ensure_documents_agree_on_shared_packages(self)
 
     @classmethod
     def from_file(cls, path: Path) -> "PnpmLock":
@@ -218,6 +219,34 @@ def _ensure_lockfile_version_is_supported(lockfile: PnpmLock) -> None:
         if version.major != 9:
             location = f" in {where}" if where else ""
             raise UnsupportedFeature(f"Unsupported lockfileVersion: '{raw_version}'{location}")
+
+
+def _ensure_documents_agree_on_shared_packages(lockfile: PnpmLock) -> None:
+    """Reject a package the documents declare with different checksums.
+
+    PnpmLock.packages merges the documents, so a duplicate silently resolves to the
+    dependency graph's entry and the env document's checksum is never verified nor
+    reported. Hermeto cannot tell which tarball pnpm would install, so it refuses
+    to pick one.
+    """
+    graph_packages = lockfile.get("packages", {})
+
+    for package_id, env_package in lockfile.env.get("packages", {}).items():
+        graph_package = graph_packages.get(package_id)
+        if graph_package is None:
+            continue
+
+        env_integrity = env_package.get("resolution", {}).get("integrity")
+        graph_integrity = graph_package.get("resolution", {}).get("integrity")
+        if env_integrity != graph_integrity:
+            raise InvalidLockfileFormat(
+                lockfile.path,
+                err_details=f"the documents declare different checksums for '{package_id}'",
+                solution=(
+                    "Regenerate the lockfile with 'pnpm install'. Hermeto cannot tell "
+                    "which of the two tarballs pnpm would install, so it will not guess."
+                ),
+            )
 
 
 def parse_packages(lockfile: PnpmLock) -> list[PnpmPackage]:

@@ -190,6 +190,48 @@ class TestPnpmLock:
         with pytest.raises(UnsupportedFeature, match="'10.0' in the env document"):
             PnpmLock.from_file(write_lockfile(tmp_path, content))
 
+    def test_rejects_documents_disagreeing_on_a_checksum(self, tmp_path: Path) -> None:
+        # Merging the documents resolves the duplicate silently, so the env
+        # document's checksum would never be verified nor reported.
+        with pytest.raises(InvalidLockfileFormat, match="pnpm@12.11.2"):
+            PnpmLock(
+                path=tmp_path / "pnpm-lock.yaml",
+                data={
+                    "lockfileVersion": "9.0",
+                    "packages": {"pnpm@12.11.2": {"resolution": {"integrity": "sha512-graph"}}},
+                },
+                env={
+                    "lockfileVersion": "9.0",
+                    "packages": {"pnpm@12.11.2": {"resolution": {"integrity": "sha512-env"}}},
+                },
+            )
+
+    def test_suggests_regenerating_a_lockfile_disagreeing_on_a_checksum(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(InvalidLockfileFormat) as exc_info:
+            PnpmLock(
+                path=tmp_path / "pnpm-lock.yaml",
+                data={
+                    "lockfileVersion": "9.0",
+                    "packages": {"pnpm@12.11.2": {"resolution": {"integrity": "sha512-graph"}}},
+                },
+                env={
+                    "lockfileVersion": "9.0",
+                    "packages": {"pnpm@12.11.2": {"resolution": {"integrity": "sha512-env"}}},
+                },
+            )
+        assert "pnpm install" in (exc_info.value.solution or "")
+
+    def test_accepts_documents_agreeing_on_a_shared_package(self, tmp_path: Path) -> None:
+        shared = {"resolution": {"integrity": "sha512-pnpm"}}
+        lockfile = PnpmLock(
+            path=tmp_path / "pnpm-lock.yaml",
+            data={"lockfileVersion": "9.0", "packages": {"pnpm@12.11.2": shared}},
+            env={"lockfileVersion": "9.0", "packages": {"pnpm@12.11.2": dict(shared)}},
+        )
+        assert set(lockfile.packages) == {"pnpm@12.11.2"}
+
     def test_parse_packages_version_field_overrides_version_from_id(self, tmp_path: Path) -> None:
         lockfile = PnpmLock(
             path=tmp_path / "pnpm-lock.yaml",

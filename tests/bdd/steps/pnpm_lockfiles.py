@@ -110,6 +110,16 @@ def shared_package_project(
 
 
 @given(
+    "a project with a pnpm lockfile whose documents disagree on a checksum",
+    target_fixture="project_dir",
+)
+def conflicting_duplicate_project(
+    make_pnpm_project: Callable[[str], Path], scenario_context: dict[str, Any]
+) -> Path:
+    return shaped_project("conflicting-duplicate", make_pnpm_project, scenario_context)
+
+
+@given(
     "a project with a pnpm lockfile whose env document declares lockfileVersion 10.0",
     target_fixture="project_dir",
 )
@@ -225,6 +235,11 @@ def fetch_fails(scenario_context: dict[str, Any]) -> None:
 @then("the error reports how many documents the lockfile holds")
 def error_reports_document_count(scenario_context: dict[str, Any]) -> None:
     assert "holds 3" in _reported_error(scenario_context)
+
+
+@then("the error names the package the documents disagree on")
+def error_names_the_disputed_package(scenario_context: dict[str, Any]) -> None:
+    assert "pnpm@12.11.2" in _reported_error(scenario_context)
 
 
 @then("the error suggests regenerating the lockfile")

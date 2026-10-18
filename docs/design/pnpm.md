@@ -190,17 +190,21 @@ by default. The consequences for Hermeto:
   out would understate the SBOM and break the offline build. `PnpmLock.packages` merges
   the `packages` section of both documents, which makes parsing, prefetch, and SBOM
   generation correct without further changes — they all read through that property.
+- **Reject documents that disagree about a shared package.** A project may pin
+  `packageManager: pnpm@x.y.z` *and* depend on `pnpm` directly, so the same package id
+  can appear in both documents. The merge above resolves the duplicate to the
+  dependency graph's entry, so a conflicting `resolution.integrity` in the env document
+  would never be verified nor reported. Hermeto cannot tell which of the two tarballs
+  pnpm would install, so it refuses the lockfile instead of picking one.
 - **Write back both documents, in order.** `yaml.safe_dump` emits one document, so a
   rewrite would silently drop the pinned package manager and pnpm would then reject the
   hermetic build with `ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE`.
   `_prepare_lockfile_for_hermetic_build` uses `yaml.safe_dump_all`; for a
   single-document lockfile the output is byte-identical to `yaml.safe_dump`.
-- **Rewrite a shared package in both documents.** A project may pin
-  `packageManager: pnpm@x.y.z` *and* depend on `pnpm` directly, so the same package id
-  can appear in both documents. pnpm resolves a package against the document it is
-  reading, so patching only the copy Hermeto finds first leaves the other pointing at
-  `registry.npmjs.org` and the build reaches the network. `_package_entries` returns
-  every document that declares the id.
+- **Rewrite a shared package in both documents.** pnpm resolves a package against the
+  document it is reading, so patching only the copy Hermeto finds first leaves the
+  other pointing at `registry.npmjs.org` and the build reaches the network.
+  `_package_entries` returns every document that declares the id.
 - **Replay the document start marker, do not infer it.** Whether the file opens with
   `---` is a property of the file, not of how many documents it holds: pnpm writes a
   marked single-document lockfile too. Inferring the marker from the presence of an env

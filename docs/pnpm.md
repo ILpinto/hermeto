@@ -18,8 +18,10 @@ other dependency. Each document must declare a supported `lockfileVersion` of it
 own.
 
 Two documents are the most Hermeto reads; it rejects a longer stream rather than
-quietly dropping the documents in the middle. Running `pnpm install` regenerates
-the lockfile.
+quietly dropping the documents in the middle. When both documents declare the same
+package, they must agree on its `resolution.integrity` — Hermeto cannot tell which
+of two tarballs pnpm would install, so it rejects the lockfile instead of guessing.
+Running `pnpm install` regenerates a lockfile in either case.
 
 ## Usage
 

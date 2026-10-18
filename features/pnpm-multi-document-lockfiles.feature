@@ -73,6 +73,13 @@ Feature: pnpm multi-document lockfiles
     And the error reports how many documents the lockfile holds
     And the error suggests regenerating the lockfile
 
+  Scenario: Documents that disagree on a package checksum are rejected
+    Given a project with a pnpm lockfile whose documents disagree on a checksum
+    When hermeto fetches the pnpm dependencies
+    Then the fetch fails
+    And the error names the package the documents disagree on
+    And the error suggests regenerating the lockfile
+
   Scenario: An env document declaring an unsupported lockfileVersion is rejected
     Given a project with a pnpm lockfile whose env document declares lockfileVersion 10.0
     When hermeto fetches the pnpm dependencies
