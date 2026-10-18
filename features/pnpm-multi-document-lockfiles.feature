@@ -65,3 +65,10 @@ Feature: pnpm multi-document lockfiles
     When hermeto fetches the pnpm dependencies
     And hermeto injects the files for the hermetic build
     Then every package in the rewritten lockfile resolves to a local tarball
+
+  Scenario: A lockfile with more than two documents is rejected
+    Given a project with a three-document pnpm lockfile
+    When hermeto fetches the pnpm dependencies
+    Then the fetch fails
+    And the error reports how many documents the lockfile holds
+    And the error suggests regenerating the lockfile

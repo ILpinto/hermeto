@@ -179,6 +179,10 @@ by default. The consequences for Hermeto:
   stream` on these files, rejecting a perfectly valid lockfile. `PnpmLock.from_file`
   uses `yaml.safe_load_all`, keeps the last document as the dependency graph, and keeps
   the first as `PnpmLock.env`.
+- **Reject a third document.** Keeping only the first and the last would drop
+  everything between them from the prefetch, the SBOM and the rewritten lockfile
+  without a word. pnpm writes at most two, so a longer stream is something Hermeto does
+  not understand and must say so rather than guess.
 - **Report and fetch the env document's packages.** pnpm installs them, so leaving them
   out would understate the SBOM and break the offline build. `PnpmLock.packages` merges
   the `packages` section of both documents, which makes parsing, prefetch, and SBOM

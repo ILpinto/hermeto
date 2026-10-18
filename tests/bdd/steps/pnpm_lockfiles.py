@@ -68,6 +68,17 @@ def _rewritten_lockfile(project_dir: Path) -> list[dict[str, Any]]:
     return _documents(project_dir.joinpath("pnpm-lock.yaml").read_text())
 
 
+def _reported_error(scenario_context: dict[str, Any]) -> str:
+    """Return what the failed fetch told the user, wherever click put it."""
+    result = scenario_context["fetch"]
+    try:
+        return result.output + result.stderr
+    except ValueError:
+        # click raises rather than returning when it did not capture the two
+        # streams separately, in which case .output already holds both.
+        return str(result.output)
+
+
 @given(
     "a project with a pnpm lockfile holding an env document and a dependency graph",
     target_fixture="project_dir",
@@ -193,3 +204,19 @@ def every_package_resolves_to_a_local_tarball(project_dir: Path, output_dir: Pat
         if not registry_dir.joinpath(package.get("resolution", {}).get("tarball", "")).is_file()
     }
     assert unresolved == set()
+
+
+@then("the fetch fails")
+def fetch_fails(scenario_context: dict[str, Any]) -> None:
+    result = scenario_context["fetch"]
+    assert result.exit_code != 0, result.output
+
+
+@then("the error reports how many documents the lockfile holds")
+def error_reports_document_count(scenario_context: dict[str, Any]) -> None:
+    assert "holds 3" in _reported_error(scenario_context)
+
+
+@then("the error suggests regenerating the lockfile")
+def error_suggests_regenerating_the_lockfile(scenario_context: dict[str, Any]) -> None:
+    assert "pnpm install" in _reported_error(scenario_context)

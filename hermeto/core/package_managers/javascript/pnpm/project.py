@@ -13,6 +13,13 @@ from hermeto.core.package_managers.javascript.npm import NPM_REGISTRY_URL
 JSR_REGISTRY_URL = "https://npm.jsr.io"
 JSR_REGISTRY_PREFIX = "@jsr/"
 
+# Since pnpm 12 a pnpm-lock.yaml may be a stream of two documents: an optional
+# leading "env" document recording the project's config dependencies and pinned
+# package manager, followed by the project's dependency graph, which is always
+# last. For pnpm <= 11 the dependency graph is the only document.
+# https://pnpm.io/lockfile
+MAX_LOCKFILE_DOCUMENTS = 2
+
 
 class PnpmLock(UserDict):
     """Class representing a pnpm-lock.yaml file."""
@@ -48,17 +55,26 @@ class PnpmLock(UserDict):
 
         content = path.read_text()
         try:
-            # Since pnpm 12 a pnpm-lock.yaml may be a stream of two documents: an
-            # optional leading "env" document recording the project's config
-            # dependencies and pinned package manager, followed by the project's
-            # dependency graph, which is always last. For pnpm <= 11 the dependency
-            # graph is the only document. https://pnpm.io/lockfile
             documents = [doc for doc in yaml.safe_load_all(content) if doc is not None]
         except yaml.YAMLError as e:
             raise InvalidLockfileFormat(
                 path,
                 err_details=str(e),
                 solution="The pnpm-lock.yaml file must contain valid YAML.",
+            )
+
+        if len(documents) > MAX_LOCKFILE_DOCUMENTS:
+            # Keeping only the first and the last would drop everything between them
+            # from the prefetch, the SBOM and the rewritten lockfile without a word.
+            raise UnsupportedFeature(
+                f"Unsupported pnpm-lock.yaml: Hermeto reads at most "
+                f"{MAX_LOCKFILE_DOCUMENTS} YAML documents, this one holds {len(documents)}",
+                solution=(
+                    "Regenerate the lockfile with 'pnpm install'. A pnpm lockfile is an "
+                    "optional leading env document followed by the project's dependency "
+                    "graph -- see docs/pnpm.md. If pnpm itself wrote this file, please "
+                    "report it to the Hermeto maintainers."
+                ),
             )
 
         # Fall back to an empty mapping for an empty file to preserve the old behavior:

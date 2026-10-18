@@ -16,6 +16,10 @@ reads every document, so the packages the env document declares — the pinned p
 release and its platform binaries — are fetched and reported in the SBOM like any
 other dependency.
 
+Two documents are the most Hermeto reads; it rejects a longer stream rather than
+quietly dropping the documents in the middle. Running `pnpm install` regenerates
+the lockfile.
+
 ## Usage
 
 Using Hermeto locally with pnpm requires no special configuration or additional

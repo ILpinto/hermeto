@@ -56,6 +56,11 @@ snapshots:
 
 MARKED_SINGLE_DOCUMENT_LOCKFILE = f"---\n{SINGLE_DOCUMENT_LOCKFILE}"
 
+THREE_DOCUMENT_LOCKFILE = (
+    "---\nlockfileVersion: '9.0'\npackages:\n  middle@1.0.0:\n"
+    "    resolution: {integrity: sha512-middle}\n" + TWO_DOCUMENT_LOCKFILE
+)
+
 
 def write_lockfile(tmp_path: Path, content: str) -> Path:
     lockfile = tmp_path / "pnpm-lock.yaml"
@@ -143,6 +148,19 @@ class TestPnpmLock:
     ) -> None:
         lockfile = PnpmLock.from_file(write_lockfile(tmp_path, SINGLE_DOCUMENT_LOCKFILE))
         assert lockfile.env == {}
+
+    def test_from_file_rejects_more_documents_than_pnpm_writes(self, tmp_path: Path) -> None:
+        # Keeping only the first and the last document would drop the middle one
+        # from the prefetch, the SBOM and the rewritten lockfile without a word.
+        with pytest.raises(UnsupportedFeature, match="holds 3"):
+            PnpmLock.from_file(write_lockfile(tmp_path, THREE_DOCUMENT_LOCKFILE))
+
+    def test_from_file_suggests_regenerating_a_lockfile_with_too_many_documents(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(UnsupportedFeature) as exc_info:
+            PnpmLock.from_file(write_lockfile(tmp_path, THREE_DOCUMENT_LOCKFILE))
+        assert "pnpm install" in (exc_info.value.solution or "")
 
     @pytest.mark.parametrize(
         ("content", "expected"),
