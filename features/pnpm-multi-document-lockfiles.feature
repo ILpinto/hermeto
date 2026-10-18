@@ -47,3 +47,9 @@ Feature: pnpm multi-document lockfiles
       | shape           |
       | single-document |
       | two-document    |
+
+  Scenario: A package both documents declare is rewritten in both
+    Given a project with a pnpm lockfile declaring one package in both documents
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then every package in the rewritten lockfile resolves to a local tarball

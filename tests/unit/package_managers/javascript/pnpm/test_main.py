@@ -278,6 +278,36 @@ def test_prepare_lockfile_for_hermetic_build_leaves_a_single_document_unmarked(
     assert project_file.template == "lockfileVersion: '9.0'\n"
 
 
+def test_prepare_lockfile_for_hermetic_build_rewrites_a_shared_package_in_both_documents(
+    tmp_path: Path,
+) -> None:
+    # pnpm installs whichever copy the document it is reading declares. Patching
+    # only the first one hermeto finds leaves the other pointing at the upstream
+    # registry, and the hermetic build then reaches the network.
+    entry = {"resolution": {"integrity": "sha512-pnpm"}}
+    lockfile = PnpmLock(
+        path=tmp_path / "pnpm-lock.yaml",
+        data={"lockfileVersion": "9.0", "packages": {"pnpm@12.11.2": dict(entry)}},
+        env={"lockfileVersion": "9.0", "packages": {"pnpm@12.11.2": dict(entry)}},
+    )
+    package = PnpmPackage(
+        "pnpm@12.11.2",
+        "",
+        "pnpm",
+        "12.11.2",
+        f"{NPM_REGISTRY_URL}/pnpm/-/pnpm-12.11.2.tgz",
+        "sha512-pnpm",
+    )
+
+    project_file = _prepare_lockfile_for_hermetic_build(lockfile, [package])
+
+    env_document, graph_document = yaml.safe_load_all(project_file.template)
+    assert env_document["packages"]["pnpm@12.11.2"]["resolution"]["tarball"] == "pnpm-12.11.2.tgz"
+    assert graph_document["packages"]["pnpm@12.11.2"]["resolution"]["tarball"] == (
+        "pnpm-12.11.2.tgz"
+    )
+
+
 @pytest.mark.parametrize(
     ("package", "expected_path"),
     [

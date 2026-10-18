@@ -63,6 +63,11 @@ def _planned_lockfile(output_dir: Path) -> list[dict[str, Any]]:
     raise AssertionError("fetch-deps recorded no pnpm-lock.yaml for injection")
 
 
+def _rewritten_lockfile(project_dir: Path) -> list[dict[str, Any]]:
+    """Return every document of the lockfile hermeto wrote back into the project."""
+    return _documents(project_dir.joinpath("pnpm-lock.yaml").read_text())
+
+
 @given(
     "a project with a pnpm lockfile holding an env document and a dependency graph",
     target_fixture="project_dir",
@@ -81,6 +86,16 @@ def shaped_project(
     scenario_context["shape"] = shape
     scenario_context["documents"] = _documents(project_dir.joinpath("pnpm-lock.yaml").read_text())
     return project_dir
+
+
+@given(
+    "a project with a pnpm lockfile declaring one package in both documents",
+    target_fixture="project_dir",
+)
+def shared_package_project(
+    make_pnpm_project: Callable[[str], Path], scenario_context: dict[str, Any]
+) -> Path:
+    return shaped_project("shared-package", make_pnpm_project, scenario_context)
 
 
 @when("hermeto fetches the pnpm dependencies")
@@ -158,3 +173,18 @@ def rewritten_lockfile_begins_with_document_start_marker(project_dir: Path) -> N
 def rewritten_lockfile_keeps_its_shape(shape: str, project_dir: Path) -> None:
     rewritten = _documents(project_dir.joinpath("pnpm-lock.yaml").read_text())
     assert len(rewritten) == DOCUMENTS_PER_SHAPE[shape]
+
+
+@then("every package in the rewritten lockfile resolves to a local tarball")
+def every_package_resolves_to_a_local_tarball(project_dir: Path, output_dir: Path) -> None:
+    # A package both documents declare has to be rewritten in both. Patching only
+    # the copy hermeto happens to find first leaves the other pointing at the
+    # upstream registry, and pnpm then reaches the network mid-build.
+    registry_dir = output_dir.joinpath("deps", "pnpm", "npm")
+    unresolved = {
+        package_id
+        for document in _rewritten_lockfile(project_dir)
+        for package_id, package in document.get("packages", {}).items()
+        if not registry_dir.joinpath(package.get("resolution", {}).get("tarball", "")).is_file()
+    }
+    assert unresolved == set()

@@ -188,6 +188,12 @@ by default. The consequences for Hermeto:
   hermetic build with `ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE`.
   `_prepare_lockfile_for_hermetic_build` uses `yaml.safe_dump_all`; for a
   single-document lockfile the output is byte-identical to `yaml.safe_dump`.
+- **Rewrite a shared package in both documents.** A project may pin
+  `packageManager: pnpm@x.y.z` *and* depend on `pnpm` directly, so the same package id
+  can appear in both documents. pnpm resolves a package against the document it is
+  reading, so patching only the copy Hermeto finds first leaves the other pointing at
+  `registry.npmjs.org` and the build reaches the network. `_package_entries` returns
+  every document that declares the id.
 
 Env-document packages are not reachable from any `importer`, so the BFS in
 `_find_non_dev_dependencies` classifies them as development dependencies. That is the
