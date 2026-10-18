@@ -72,3 +72,10 @@ Feature: pnpm multi-document lockfiles
     Then the fetch fails
     And the error reports how many documents the lockfile holds
     And the error suggests regenerating the lockfile
+
+  Scenario: An env document declaring an unsupported lockfileVersion is rejected
+    Given a project with a pnpm lockfile whose env document declares lockfileVersion 10.0
+    When hermeto fetches the pnpm dependencies
+    Then the fetch fails
+    And the error names the unsupported lockfileVersion
+    And the error points at the env document

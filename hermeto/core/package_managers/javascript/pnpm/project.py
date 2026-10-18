@@ -196,18 +196,28 @@ def _starts_with_document_marker(content: str) -> bool:
 
 
 def _ensure_lockfile_version_is_supported(lockfile: PnpmLock) -> None:
-    """Ensure Hermeto supports the lockfile version in the pnpm-lock.yaml file."""
-    raw_version = str(lockfile.get("lockfileVersion", ""))
-    if not raw_version:
-        raise InvalidLockfileFormat(
-            lockfile.path,
-            err_details=None,
-            solution="The pnpm-lock.yaml file must contain a lockfileVersion field.",
-        )
+    """Ensure Hermeto supports the lockfile version of every document in the file.
 
-    version = Version.parse(raw_version, optional_minor_and_patch=True)
-    if version.major != 9:
-        raise UnsupportedFeature(f"Unsupported lockfileVersion: '{raw_version}'")
+    Each document carries its own lockfileVersion. pnpm writes the same version to
+    both today, but nothing in the format promises that, and parsing an unknown
+    format as if it were 9.0 would quietly mis-report the SBOM.
+    """
+    documents = [("the env document", lockfile.env)] if lockfile.env else []
+    documents.append(("", lockfile.data))
+
+    for where, document in documents:
+        raw_version = str(document.get("lockfileVersion", ""))
+        if not raw_version:
+            raise InvalidLockfileFormat(
+                lockfile.path,
+                err_details=None,
+                solution="The pnpm-lock.yaml file must contain a lockfileVersion field.",
+            )
+
+        version = Version.parse(raw_version, optional_minor_and_patch=True)
+        if version.major != 9:
+            location = f" in {where}" if where else ""
+            raise UnsupportedFeature(f"Unsupported lockfileVersion: '{raw_version}'{location}")
 
 
 def parse_packages(lockfile: PnpmLock) -> list[PnpmPackage]:

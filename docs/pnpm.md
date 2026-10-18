@@ -14,7 +14,8 @@ leading env document recording the project's [config dependencies][] and its
 [pinned package manager][], followed by the project's own dependency graph. Hermeto
 reads every document, so the packages the env document declares — the pinned pnpm
 release and its platform binaries — are fetched and reported in the SBOM like any
-other dependency.
+other dependency. Each document must declare a supported `lockfileVersion` of its
+own.
 
 Two documents are the most Hermeto reads; it rejects a longer stream rather than
 quietly dropping the documents in the middle. Running `pnpm install` regenerates

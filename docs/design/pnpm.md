@@ -168,9 +168,8 @@ snapshots:
   is-number@7.0.0: {}
 ```
 
-Both documents declare `lockfileVersion: '9.0'`, so the version gate is unaffected.
 The dependency graph is always the **last** document; the env document, when present,
-is the first. A file whose first line is `---` has one.
+is the first. Both documents declare their own `lockfileVersion`.
 
 Most pnpm 12 projects have an env document, because `pnpm init` pins `packageManager`
 by default. The consequences for Hermeto:
@@ -183,6 +182,10 @@ by default. The consequences for Hermeto:
   everything between them from the prefetch, the SBOM and the rewritten lockfile
   without a word. pnpm writes at most two, so a longer stream is something Hermeto does
   not understand and must say so rather than guess.
+- **Gate the version of every document.** Each one declares its own
+  `lockfileVersion`. pnpm writes the same value to both today, but nothing in the
+  format promises that, and validating only the last document would let Hermeto parse
+  an env document in an unknown format as if it were 9.0 and mis-report the SBOM.
 - **Report and fetch the env document's packages.** pnpm installs them, so leaving them
   out would understate the SBOM and break the offline build. `PnpmLock.packages` merges
   the `packages` section of both documents, which makes parsing, prefetch, and SBOM

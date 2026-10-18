@@ -179,6 +179,17 @@ class TestPnpmLock:
         lockfile = PnpmLock.from_file(write_lockfile(tmp_path, content))
         assert lockfile.explicit_start is expected
 
+    def test_from_file_rejects_an_unsupported_version_in_the_env_document(
+        self, tmp_path: Path
+    ) -> None:
+        # Only the last document used to pass the version gate, so an env document
+        # in a format hermeto does not know would have been parsed as if it were 9.0.
+        content = TWO_DOCUMENT_LOCKFILE.replace(
+            "lockfileVersion: '9.0'", "lockfileVersion: '10.0'", 1
+        )
+        with pytest.raises(UnsupportedFeature, match="'10.0' in the env document"):
+            PnpmLock.from_file(write_lockfile(tmp_path, content))
+
     def test_parse_packages_version_field_overrides_version_from_id(self, tmp_path: Path) -> None:
         lockfile = PnpmLock(
             path=tmp_path / "pnpm-lock.yaml",

@@ -109,6 +109,16 @@ def shared_package_project(
     return shaped_project("shared-package", make_pnpm_project, scenario_context)
 
 
+@given(
+    "a project with a pnpm lockfile whose env document declares lockfileVersion 10.0",
+    target_fixture="project_dir",
+)
+def unsupported_env_version_project(
+    make_pnpm_project: Callable[[str], Path], scenario_context: dict[str, Any]
+) -> Path:
+    return shaped_project("unsupported-env-version", make_pnpm_project, scenario_context)
+
+
 @when("hermeto fetches the pnpm dependencies")
 def fetch_dependencies(
     project_dir: Path,
@@ -220,3 +230,13 @@ def error_reports_document_count(scenario_context: dict[str, Any]) -> None:
 @then("the error suggests regenerating the lockfile")
 def error_suggests_regenerating_the_lockfile(scenario_context: dict[str, Any]) -> None:
     assert "pnpm install" in _reported_error(scenario_context)
+
+
+@then("the error names the unsupported lockfileVersion")
+def error_names_the_unsupported_lockfile_version(scenario_context: dict[str, Any]) -> None:
+    assert "'10.0'" in _reported_error(scenario_context)
+
+
+@then("the error points at the env document")
+def error_points_at_the_env_document(scenario_context: dict[str, Any]) -> None:
+    assert "env document" in _reported_error(scenario_context)
