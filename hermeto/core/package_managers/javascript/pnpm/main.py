@@ -154,20 +154,19 @@ def _prepare_lockfile_for_hermetic_build(
                 )
 
     # Write back the documents the lockfile was read from, in order. Collapsing a
-    # two-document lockfile into one drops the pinned package manager. pnpm also
-    # expects the leading '---' it wrote itself; without it the stream still parses,
-    # but pnpm re-runs the package manager dependency resolution and then fails the
-    # hermetic build with ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE. A pnpm <= 11
-    # lockfile is a single document with no leading '---', so for that case
-    # safe_dump_all is byte-identical to safe_dump.
+    # two-document lockfile into one drops the pinned package manager, and dropping
+    # the leading '---' makes pnpm re-run the package manager dependency resolution
+    # and then fail the hermetic build with
+    # ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE.
     documents = [lockfile_copy.data]
-    explicit_start = bool(lockfile_copy.env)
-    if explicit_start:
+    if lockfile_copy.env:
         documents.insert(0, lockfile_copy.env)
 
     return ProjectFile(
         abspath=lockfile_copy.path,
-        template=yaml.safe_dump_all(documents, sort_keys=False, explicit_start=explicit_start),
+        template=yaml.safe_dump_all(
+            documents, sort_keys=False, explicit_start=lockfile_copy.explicit_start
+        ),
     )
 
 

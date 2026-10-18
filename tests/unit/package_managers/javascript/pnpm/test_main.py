@@ -278,6 +278,22 @@ def test_prepare_lockfile_for_hermetic_build_leaves_a_single_document_unmarked(
     assert project_file.template == "lockfileVersion: '9.0'\n"
 
 
+def test_prepare_lockfile_for_hermetic_build_keeps_a_single_documents_marker(
+    tmp_path: Path,
+) -> None:
+    # The marker belongs to the file, not to the number of documents in it.
+    # Inferring it from the presence of an env document drops it here.
+    lockfile = PnpmLock(
+        path=tmp_path / "pnpm-lock.yaml",
+        data={"lockfileVersion": "9.0"},
+        explicit_start=True,
+    )
+
+    project_file = _prepare_lockfile_for_hermetic_build(lockfile, [])
+
+    assert project_file.template == "---\nlockfileVersion: '9.0'\n"
+
+
 def test_prepare_lockfile_for_hermetic_build_rewrites_a_shared_package_in_both_documents(
     tmp_path: Path,
 ) -> None:

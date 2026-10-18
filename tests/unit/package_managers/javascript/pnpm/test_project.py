@@ -54,6 +54,8 @@ snapshots:
   is-number@7.0.0: {}
 """
 
+MARKED_SINGLE_DOCUMENT_LOCKFILE = f"---\n{SINGLE_DOCUMENT_LOCKFILE}"
+
 
 def write_lockfile(tmp_path: Path, content: str) -> Path:
     lockfile = tmp_path / "pnpm-lock.yaml"
@@ -141,6 +143,23 @@ class TestPnpmLock:
     ) -> None:
         lockfile = PnpmLock.from_file(write_lockfile(tmp_path, SINGLE_DOCUMENT_LOCKFILE))
         assert lockfile.env == {}
+
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            pytest.param(SINGLE_DOCUMENT_LOCKFILE, False, id="single_document"),
+            pytest.param(MARKED_SINGLE_DOCUMENT_LOCKFILE, True, id="marked_single_document"),
+            pytest.param(TWO_DOCUMENT_LOCKFILE, True, id="two_documents"),
+        ],
+    )
+    def test_from_file_records_the_document_start_marker(
+        self, tmp_path: Path, content: str, expected: bool
+    ) -> None:
+        # Whether the file opens with '---' is a property of the file, not of
+        # how many documents it holds. pnpm reads a missing marker as a reason to
+        # re-resolve and then fails the hermetic build.
+        lockfile = PnpmLock.from_file(write_lockfile(tmp_path, content))
+        assert lockfile.explicit_start is expected
 
     def test_parse_packages_version_field_overrides_version_from_id(self, tmp_path: Path) -> None:
         lockfile = PnpmLock(

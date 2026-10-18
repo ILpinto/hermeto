@@ -194,6 +194,12 @@ by default. The consequences for Hermeto:
   reading, so patching only the copy Hermeto finds first leaves the other pointing at
   `registry.npmjs.org` and the build reaches the network. `_package_entries` returns
   every document that declares the id.
+- **Replay the document start marker, do not infer it.** Whether the file opens with
+  `---` is a property of the file, not of how many documents it holds: pnpm writes a
+  marked single-document lockfile too. Inferring the marker from the presence of an env
+  document would strip it from such a file, and pnpm reads a missing marker as a reason
+  to re-resolve and then fails the hermetic build. `PnpmLock.explicit_start` records what
+  the file had and the rewrite hands it back.
 
 Env-document packages are not reachable from any `importer`, so the BFS in
 `_find_non_dev_dependencies` classifies them as development dependencies. That is the

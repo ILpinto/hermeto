@@ -48,6 +48,18 @@ Feature: pnpm multi-document lockfiles
       | single-document |
       | two-document    |
 
+  Scenario: A lockfile that opens with a document start marker keeps it
+    Given a project with a marked-single-document pnpm lockfile
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then the rewritten lockfile begins with a document start marker
+
+  Scenario: A lockfile written without a document start marker gains none
+    Given a project with a single-document pnpm lockfile
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then the rewritten lockfile begins with no document start marker
+
   Scenario: A package both documents declare is rewritten in both
     Given a project with a pnpm lockfile declaring one package in both documents
     When hermeto fetches the pnpm dependencies

@@ -169,6 +169,11 @@ def rewritten_lockfile_begins_with_document_start_marker(project_dir: Path) -> N
     assert project_dir.joinpath("pnpm-lock.yaml").read_text().startswith("---\n")
 
 
+@then("the rewritten lockfile begins with no document start marker")
+def rewritten_lockfile_begins_with_no_document_start_marker(project_dir: Path) -> None:
+    assert not project_dir.joinpath("pnpm-lock.yaml").read_text().startswith("---")
+
+
 @then(parsers.parse("the rewritten lockfile is a {shape} stream"))
 def rewritten_lockfile_keeps_its_shape(shape: str, project_dir: Path) -> None:
     rewritten = _documents(project_dir.joinpath("pnpm-lock.yaml").read_text())

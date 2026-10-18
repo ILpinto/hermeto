@@ -17,14 +17,24 @@ JSR_REGISTRY_PREFIX = "@jsr/"
 class PnpmLock(UserDict):
     """Class representing a pnpm-lock.yaml file."""
 
-    def __init__(self, path: Path, data: dict[str, Any], env: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        path: Path,
+        data: dict[str, Any],
+        env: dict[str, Any] | None = None,
+        explicit_start: bool | None = None,
+    ) -> None:
         """Initialize a PnpmLock object.
 
         :param data: the project's dependency graph, the last document in the file
         :param env: the leading env document, when the lockfile has one
+        :param explicit_start: whether the file opened with a '---' document start
+            marker. Only the reader knows; callers that construct a lockfile by hand
+            get the marker pnpm writes for the number of documents they passed.
         """
         self.path = path
         self.env = env or {}
+        self.explicit_start = bool(self.env) if explicit_start is None else explicit_start
         super().__init__(data)
         _ensure_lockfile_version_is_supported(self)
 
@@ -36,14 +46,14 @@ class PnpmLock(UserDict):
                 path, solution="Run 'pnpm install' to generate the pnpm-lock.yaml file."
             )
 
+        content = path.read_text()
         try:
-            with path.open() as f:
-                # Since pnpm 12 a pnpm-lock.yaml may be a stream of two documents: an
-                # optional leading "env" document recording the project's config
-                # dependencies and pinned package manager, followed by the project's
-                # dependency graph, which is always last. For pnpm <= 11 the dependency
-                # graph is the only document. https://pnpm.io/lockfile
-                documents = [doc for doc in yaml.safe_load_all(f) if doc is not None]
+            # Since pnpm 12 a pnpm-lock.yaml may be a stream of two documents: an
+            # optional leading "env" document recording the project's config
+            # dependencies and pinned package manager, followed by the project's
+            # dependency graph, which is always last. For pnpm <= 11 the dependency
+            # graph is the only document. https://pnpm.io/lockfile
+            documents = [doc for doc in yaml.safe_load_all(content) if doc is not None]
         except yaml.YAMLError as e:
             raise InvalidLockfileFormat(
                 path,
@@ -57,6 +67,7 @@ class PnpmLock(UserDict):
             path,
             documents[-1] if documents else {},
             env=documents[0] if len(documents) > 1 else None,
+            explicit_start=_starts_with_document_marker(content),
         )
 
     @classmethod
@@ -143,6 +154,29 @@ class PnpmPackage:
     def is_from_jsr_registry(self) -> bool:
         """Return True if the package is from the JSR registry."""
         return self.url.startswith(JSR_REGISTRY_URL)
+
+
+def _starts_with_document_marker(content: str) -> bool:
+    """Return True if a pnpm-lock.yaml opens with a YAML document start marker.
+
+    pnpm writes the marker itself and will not accept a lockfile that lost it: the
+    stream still parses, but pnpm re-runs the package manager dependency resolution
+    and then fails the hermetic build with
+    ERR_PNPM_FROZEN_LOCKFILE_WITH_OUTDATED_LOCKFILE. Record what the file had rather
+    than inferring it from the document count, so the rewrite hands pnpm back the
+    same stream it was given.
+
+    >>> _starts_with_document_marker("---\\nlockfileVersion: '9.0'\\n")
+    True
+    >>> _starts_with_document_marker("lockfileVersion: '9.0'\\n")
+    False
+    """
+    for line in content.splitlines():
+        if not line.strip():
+            continue
+        return line.rstrip() == "---" or line.startswith("--- ")
+
+    return False
 
 
 def _ensure_lockfile_version_is_supported(lockfile: PnpmLock) -> None:
