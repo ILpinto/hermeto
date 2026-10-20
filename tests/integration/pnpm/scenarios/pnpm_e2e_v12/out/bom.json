@@ -21,7 +21,7 @@
         "pkg:npm/%40pnpm/exe.linux-x64@12.11.2",
         "pkg:npm/%40pnpm/exe.win32-arm64@12.11.2",
         "pkg:npm/%40pnpm/exe.win32-x64@12.11.2",
-        "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%4033496423db77d8245cc8720be504399aaad15b53",
+        "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%40672a5207ca00a3b42a371fe454f45981ef2ef6c7",
         "pkg:npm/is-number@7.0.0",
         "pkg:npm/pnpm@12.11.2"
       ],
@@ -270,7 +270,7 @@
       "version": "12.11.2"
     },
     {
-      "bom-ref": "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%4033496423db77d8245cc8720be504399aaad15b53",
+      "bom-ref": "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%40672a5207ca00a3b42a371fe454f45981ef2ef6c7",
       "name": "integration-tests",
       "properties": [
         {
@@ -278,7 +278,7 @@
           "value": "hermeto"
         }
       ],
-      "purl": "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%4033496423db77d8245cc8720be504399aaad15b53",
+      "purl": "pkg:npm/integration-tests@1.0.0?vcs_url=git%2Bhttps://github.com/hermetoproject/hermeto.git%40672a5207ca00a3b42a371fe454f45981ef2ef6c7",
       "type": "library",
       "version": "1.0.0"
     },
