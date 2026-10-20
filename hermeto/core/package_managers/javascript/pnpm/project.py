@@ -203,21 +203,26 @@ def _ensure_lockfile_version_is_supported(lockfile: PnpmLock) -> None:
     both today, but nothing in the format promises that, and parsing an unknown
     format as if it were 9.0 would quietly mis-report the SBOM.
     """
-    documents = [("the env document", lockfile.env)] if lockfile.env else []
-    documents.append(("", lockfile.data))
+    documents: list[tuple[str | None, dict[str, Any]]] = (
+        [("the env document", lockfile.env)] if lockfile.env else []
+    )
+    documents.append((None, lockfile.data))
 
     for where, document in documents:
+        location = f" in {where}" if where else ""
+
         raw_version = str(document.get("lockfileVersion", ""))
         if not raw_version:
             raise InvalidLockfileFormat(
                 lockfile.path,
                 err_details=None,
-                solution="The pnpm-lock.yaml file must contain a lockfileVersion field.",
+                solution=(
+                    f"The pnpm-lock.yaml file must contain a lockfileVersion field{location}."
+                ),
             )
 
         version = Version.parse(raw_version, optional_minor_and_patch=True)
         if version.major != 9:
-            location = f" in {where}" if where else ""
             raise UnsupportedFeature(f"Unsupported lockfileVersion: '{raw_version}'{location}")
 
 
