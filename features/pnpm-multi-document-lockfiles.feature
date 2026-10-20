@@ -24,3 +24,26 @@ Feature: pnpm multi-document lockfiles
     Given a project with a pnpm lockfile holding an env document and a dependency graph
     When hermeto fetches the pnpm dependencies
     Then every package declared in the env document resolves to a local tarball
+
+  Scenario: The rewritten lockfile keeps the pinned package manager
+    Given a project with a pnpm lockfile holding an env document and a dependency graph
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then the rewritten lockfile still declares the pinned package manager
+
+  Scenario: The rewritten lockfile keeps the document start marker
+    Given a project with a two-document pnpm lockfile
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then the rewritten lockfile begins with a document start marker
+
+  Scenario Outline: The rewritten lockfile keeps the document structure it was given
+    Given a project with a <shape> pnpm lockfile
+    When hermeto fetches the pnpm dependencies
+    And hermeto injects the files for the hermetic build
+    Then the rewritten lockfile is a <shape> stream
+
+    Examples:
+      | shape           |
+      | single-document |
+      | two-document    |
