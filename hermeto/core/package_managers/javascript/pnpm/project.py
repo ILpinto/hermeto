@@ -203,12 +203,12 @@ def _ensure_lockfile_version_is_supported(lockfile: PnpmLock) -> None:
     both today, but nothing in the format promises that, and parsing an unknown
     format as if it were 9.0 would quietly mis-report the SBOM.
     """
-    documents: list[tuple[str | None, dict[str, Any]]] = (
+    labeled_documents: list[tuple[str | None, dict[str, Any]]] = (
         [("the env document", lockfile.env)] if lockfile.env else []
     )
-    documents.append((None, lockfile.data))
+    labeled_documents.append((None, lockfile.data))
 
-    for where, document in documents:
+    for where, document in labeled_documents:
         location = f" in {where}" if where else ""
 
         raw_version = str(document.get("lockfileVersion", ""))
