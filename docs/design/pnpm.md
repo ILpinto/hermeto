@@ -93,8 +93,8 @@ GitHub repository. The latest commit (at the time of writing) from 2024 points t
 a briefly described format of the lockfile version 9.0 - [https://github.com/pnpm/spec/blob/master/lockfile/9.0.md](https://github.com/pnpm/spec/blob/master/lockfile/9.0.md).
 
 Hermeto will target the lockfile version 9.0. The lockfile version does not seem
-to be directly tied to the pnpm version. pnpm major versions 10 or 11 work with
-version 9.0.
+to be directly tied to the pnpm version. pnpm major versions 10, 11 and 12 all
+work with version 9.0.
 
 The root keys and their order are defined in the main pnpm source repository:
 [sortLockfileKeys.ts](https://github.com/pnpm/pnpm/blob/main/lockfile/fs/src/sortLockfileKeys.ts).

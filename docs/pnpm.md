@@ -8,8 +8,11 @@ The `lockfileVersion` field must be within the range of >= 9.0 and < 10.0. Earli
 versions are not supported. Newer versions could introduce breaking changes to the
 lockfile format, so Hermeto might not be able to process them correctly.
 
-pnpm 9 through 12 all write `lockfileVersion: '9.0'`, so all four are supported.
-Since pnpm 12, however, the file may hold *two* YAML documents instead of one: a
+pnpm 9 through 12 all write `lockfileVersion: '9.0'`, so Hermeto reads all four.
+For pnpm 12 that means prefetch and the SBOM only: the offline `pnpm install`
+does not work yet for the projects pnpm 12 creates by default, as
+[Build the image offline](#build-the-image-offline) explains.
+Since pnpm 12 the file may hold *two* YAML documents instead of one: a
 leading env document recording the project's [config dependencies][] and its
 [pinned package manager][], followed by the project's own dependency graph. Hermeto
 reads every document, so the packages the env document declares — the pinned pnpm
@@ -139,6 +142,22 @@ git diff
 
 ### Build the image offline
 
+> [!IMPORTANT]
+> **pnpm 12 and the offline build.** A project whose lockfile carries an env
+> document — which is most pnpm 12 projects, since `pnpm init` pins
+> `packageManager` by default — cannot complete `pnpm install` offline today,
+> whatever Hermeto writes. pnpm resolves the env document's
+> `packageManagerDependencies` and `configDependencies` before it reads the
+> project's `.npmrc`, using a client that refuses a `file://` registry: it
+> fails with `ERR_PNPM_BAD_CONFIG_DEP` ("URL scheme is not allowed") when the
+> registry is set, reaches for `registry.npmjs.org` when it is not, and ignores
+> the `resolution.tarball` Hermeto writes for those packages.
+>
+> Prefetch and the SBOM are correct — every package both documents declare is
+> downloaded and reported. It is the install step that cannot be made hermetic
+> from Hermeto's side. See
+> [hermetoproject/hermeto#1802](https://github.com/hermetoproject/hermeto/issues/1802).
+
 This example uses [generic](generic.md) backend artifact to install a specific
 version of pnpm using `npm` binary. There is an [official pnpm base image][], but
 without `node` runtime and no tags for pnpm v10. Unofficial images on Docker Hub
@@ -164,6 +183,11 @@ RUN . /tmp/hermeto.env && pnpm install
 > [!NOTE]
 > When using pnpm v10, you can omit sourcing hermeto.env and the volume mount in
 > the command below.
+>
+> Installing pnpm from a [generic](generic.md) artifact, as above, applies to
+> pnpm 11 and earlier. A pnpm 12 project pins its package manager in the
+> lockfile's env document instead, and Hermeto fetches it from there — but see
+> the limitation above before relying on that for an offline build.
 
 ```shell
 podman build . \
