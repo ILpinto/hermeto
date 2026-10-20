@@ -7,6 +7,8 @@ in step bodies, and add no per-feature conftest files.
 """
 
 import json
+import logging
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Iterator
 from unittest import mock
@@ -87,12 +89,41 @@ def make_pnpm_project(tmp_path: Path) -> Callable[[str], Path]:
     return _make
 
 
+@contextmanager
+def _logging_detached_from_pytest() -> Iterator[None]:
+    """Keep the CLI's log records away from pytest and from stale streams.
+
+    pytest's live-log handler sits on the root logger and suspends and resumes
+    global capture whenever a record reaches it. Inside CliRunner.invoke that
+    closes the streams click is capturing into, and reading the result then
+    fails with "I/O operation on closed file" -- so any scenario whose command
+    logs at or above the live-log level dies for a reason that has nothing to
+    do with the behavior it specifies.
+
+    The NullHandler is what keeps setup_logging from attaching one of its own.
+    That handler binds to sys.stderr as it is at construction time, and the
+    hermeto logger outlives the invocation, so the next scenario would inherit
+    a handler aimed at a stream click has already closed.
+
+    Scenarios assert on what the CLI prints, not on what it logs, so this hides
+    nothing they are allowed to see.
+    """
+    logger = logging.getLogger("hermeto")
+    handlers, propagate = logger.handlers[:], logger.propagate
+    logger.handlers, logger.propagate = [logging.NullHandler()], False
+    try:
+        yield
+    finally:
+        logger.handlers, logger.propagate = handlers, propagate
+
+
 @pytest.fixture
 def run_hermeto() -> Callable[..., Any]:
     """Return a callable invoking the hermeto CLI in process."""
     runner = typer.testing.CliRunner()
 
     def _run(*args: str) -> Any:
-        return runner.invoke(app, list(args), catch_exceptions=False)
+        with _logging_detached_from_pytest():
+            return runner.invoke(app, list(args), catch_exceptions=False)
 
     return _run
