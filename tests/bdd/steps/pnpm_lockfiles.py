@@ -14,7 +14,9 @@ DOCUMENTS_PER_SHAPE = {"single-document": 1, "two-document": 2}
 
 def _documents(source: str) -> list[dict[str, Any]]:
     """Return every YAML document in a lockfile, in the order it appears."""
-    return [document for document in yaml.safe_load_all(source) if document]
+    # Same filter as PnpmLock.from_file: drop only the empty documents yaml
+    # yields as None, so a document that is present but empty still counts.
+    return [document for document in yaml.safe_load_all(source) if document is not None]
 
 
 def _env_document(documents: list[dict[str, Any]]) -> dict[str, Any]:
